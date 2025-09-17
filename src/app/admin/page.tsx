@@ -8,6 +8,12 @@ type Metrics = {
   meetingsConfirmed: number;
 };
 
+type MetricsApiResponse = {
+  ok: boolean;
+  data?: Metrics;
+  error?: string;
+};
+
 export default function AdminPage() {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -17,11 +23,16 @@ export default function AdminPage() {
     const run = async () => {
       try {
         const res = await fetch("/api/admin/metrics");
-        const data = await res.json();
-        if (!res.ok || !data.ok) throw new Error(data.error || "Failed to load metrics");
-        setMetrics(data.data as Metrics);
-      } catch (e: any) {
-        setError(e?.message || "Unknown error");
+        const json = (await res.json()) as unknown;
+        const data = json as MetricsApiResponse;
+        if (!res.ok || !data?.ok) {
+          const msg = (data && "error" in data && data.error) ? data.error : "Failed to load metrics";
+          throw new Error(msg);
+        }
+        setMetrics(data.data ?? null);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Unknown error";
+        setError(msg);
       } finally {
         setLoading(false);
       }
