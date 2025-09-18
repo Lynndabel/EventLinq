@@ -225,7 +225,7 @@ export default function OnboardAndMatch() {
           <h3 className="font-semibold text-base">Suggested matches</h3>
           {suggestions.length === 0 && <div className="text-sm text-gray-600">No matches yet. Try adding more attendees.</div>}
           <ul className="space-y-2">
-            {suggestions.map((s) => {
+            {suggestions.map((s) => { 
               const partner = s._partner as Attendee | undefined;
               const initials = partner?.name ? partner.name.split(/\s+/).slice(0,2).map(n=>n[0]?.toUpperCase()).join("") : "?";
               return (
