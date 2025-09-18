@@ -25,7 +25,7 @@ export async function GET() {
       meetingsConfirmed: meetings.count || 0,
     }
     return NextResponse.json({ ok: true, data })
-  } catch (e) {
+  } catch {
     // Fail-soft for dashboard
     return NextResponse.json(
       { ok: true, data: { signups: 0, matchesProposed: 0, introAcceptanceRate: 0, meetingsConfirmed: 0 } },

@@ -34,8 +34,9 @@ export async function POST(req: NextRequest) {
           if (error) throw error
           return NextResponse.json({ ok: true, attendee: data })
         } catch (e: unknown) {
-          const msg = e instanceof Error ? e.message : 'Failed to upsert attendee'
-          return NextResponse.json({ ok: false, error: msg }, { status: 400 })
+          const anyErr = e as { message?: string; code?: string } | undefined
+          const msg = anyErr?.message || (e instanceof Error ? e.message : 'Failed to upsert attendee')
+          return NextResponse.json({ ok: false, error: msg, code: anyErr?.code }, { status: 400 })
         }
 
       case 'match.request':
