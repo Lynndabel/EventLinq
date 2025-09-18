@@ -44,6 +44,21 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Subtle grid only on wide screens to add depth */
+@media (min-width: 1024px) {
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image: linear-gradient(to right, rgba(127,127,127,.06) 1px, transparent 1px),
+                      linear-gradient(to bottom, rgba(127,127,127,.06) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: radial-gradient(ellipse at 50% 0%, rgba(0,0,0,.35), rgba(0,0,0,0) 60%);
+    z-index: 0;
+  }
+}
+
 /* Minimal, consistent focus ring */
 *:focus {
   outline: none;
@@ -66,4 +81,23 @@ a:hover {
 button, input, textarea, select {
   transition: background-color .2s ease, color .2s ease, border-color .2s ease, box-shadow .2s ease, opacity .2s ease;
 }
+
+/* Premium helpers */
+.gradient-border {
+  position: relative;
+  border-radius: 16px;
+  padding: 1px; /* border thickness */
+  background: linear-gradient(135deg, rgba(124,58,237,0.9), rgba(14,165,233,0.9));
+}
+.gradient-border > .gradient-inner {
+  border-radius: 15px;
+  background: color-mix(in oklab, var(--background) 92%, transparent);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), #22d3ee);
+  color: #fff;
+}
+.btn-primary:hover { filter: saturate(1.1) brightness(1.03); }
+.btn-primary:disabled { opacity: .65; }
 

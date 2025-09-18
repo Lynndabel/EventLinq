@@ -60,25 +60,35 @@ export default function ClientHome() {
       <main className="px-6 pt-16 pb-24">
         <div className="max-w-7xl mx-auto grid gap-12 lg:grid-cols-12 items-start">
           <section className="space-y-6 lg:col-span-7">
-            <h1 className="text-4xl lg:text-5xl font-bold leading-tight tracking-tight">Meet the right people — instantly</h1>
+            <h1 className="text-4xl lg:text-5xl font-bold leading-tight tracking-tight">Match with the right people, faster</h1>
             <p className="text-lg text-gray-700 dark:text-gray-300 max-w-2xl">
-              An AI agent that learns your goals and interests, suggests high‑quality matches, and sends warm
-              intros with consent. Built on Sensay. Deployable on web and chat.
+              EventLinq uses AI to understand your goals and connect you with highly relevant people.
+              Approvals are consent-based and intros are coordinated for you.
             </p>
-            <ul className="grid gap-2 text-sm text-gray-700 dark:text-gray-300 max-w-xl">
+            <div className="flex flex-wrap gap-3 pt-2">
+              <a href="#try-it" className="btn-primary rounded-md px-4 py-2 text-sm shadow">
+                Get Started
+              </a>
+              <a href="/chat" className="rounded-md border border-gray-200 dark:border-gray-800 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-900">
+                Open Chat
+              </a>
+            </div>
+            <ul className="grid gap-2 text-sm text-gray-700 dark:text-gray-300 max-w-xl pt-2">
               <li>• Onboard in under a minute</li>
-              <li>• AI‑curated matches with reason codes</li>
+              <li>• AI‑curated matches with clear rationale</li>
               <li>• One‑click intros and simple coordination</li>
             </ul>
           </section>
           <section id="try-it" className="lg:col-span-5 w-full">
-            <div className="rounded-2xl border border-gray-200 dark:border-gray-800 p-6 shadow-sm lg:sticky lg:top-24 bg-white/80 dark:bg-black/80 backdrop-blur">
-              <h2 className="font-semibold mb-1">Try it now</h2>
-              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
-                Use the chat widget or the form to get matched. We only introduce you when you confirm.
-              </p>
-              <div className="mt-6">
-                <OnboardAndMatch />
+            <div className="gradient-border lg:sticky lg:top-24">
+              <div className="gradient-inner rounded-2xl p-6 shadow-sm bg-white/80 dark:bg-black/80 backdrop-blur">
+                <h2 className="font-semibold mb-1">Register & Find Matches</h2>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                  Use the chat widget or the form to get matched. We only introduce you when you confirm.
+                </p>
+                <div className="mt-6">
+                  <OnboardAndMatch />
+                </div>
               </div>
             </div>
           </section>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
+import FloatingAskAI from "./components/FloatingAskAI";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,6 +17,29 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Sensay Event Matchmaker",
   description: "AI agent that matches attendees and coordinates intros.",
+  metadataBase: new URL("https://eventlinq-ai.vercel.app/"),
+  openGraph: {
+    title: "EventLinq — AI Matchmaking for Events",
+    description: "Connect with the right people faster. Consent-first intros. Simple coordination.",
+    url: "/",
+    siteName: "EventLinq",
+    images: [
+      {
+        url: "/logo.svg",
+        width: 1200,
+        height: 630,
+        alt: "EventLinq",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "EventLinq — AI Matchmaking for Events",
+    description: "Connect with the right people faster. Consent-first intros. Simple coordination.",
+    images: ["/logo.svg"],
+  },
 };
 
 export default function RootLayout({
@@ -34,6 +58,7 @@ export default function RootLayout({
           strategy="afterInteractive"
         />
         {children}
+        <FloatingAskAI />
       </body>
     </html>
   );
