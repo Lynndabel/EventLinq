@@ -32,3 +32,40 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: msg }, { status: 500 })
   }
 }
+
+// Fetch attendee(s)
+// GET /api/attendees?id=<id>
+// GET /api/attendees?ids=<id1,id2,id3>
+export async function GET(req: NextRequest) {
+  try {
+    const url = new URL(req.url)
+    const id = url.searchParams.get('id')
+    const idsParam = url.searchParams.get('ids')
+
+    if (id) {
+      const { data, error } = await supabase.from('attendees').select('*').eq('id', id).single()
+      if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 400 })
+      return NextResponse.json({ ok: true, attendee: data })
+    }
+
+    if (idsParam) {
+      const ids = idsParam.split(',').map(s => s.trim()).filter(Boolean)
+      if (ids.length === 0) return NextResponse.json({ ok: true, attendees: [] })
+      const { data, error } = await supabase.from('attendees').select('*').in('id', ids)
+      if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 400 })
+      return NextResponse.json({ ok: true, attendees: data })
+    }
+
+    // Default: return last 50 for convenience
+    const { data, error } = await supabase
+      .from('attendees')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50)
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 400 })
+    return NextResponse.json({ ok: true, attendees: data })
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Failed to fetch attendees'
+    return NextResponse.json({ ok: false, error: msg }, { status: 500 })
+  }
+}
