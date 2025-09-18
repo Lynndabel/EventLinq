@@ -12,7 +12,7 @@ type Attendee = {
   availability?: string;
 };
 
-type Suggestion = { partnerId: string; score: number; rationale: string };
+type Suggestion = { partnerId: string; score: number; rationale: string; _partner?: Attendee };
 
 type FormState = {
   name: string;
@@ -226,7 +226,7 @@ export default function OnboardAndMatch() {
           {suggestions.length === 0 && <div className="text-sm text-gray-600">No matches yet. Try adding more attendees.</div>}
           <ul className="space-y-2">
             {suggestions.map((s) => {
-              const partner = (s as any)._partner as Attendee | undefined;
+              const partner = s._partner as Attendee | undefined;
               const initials = partner?.name ? partner.name.split(/\s+/).slice(0,2).map(n=>n[0]?.toUpperCase()).join("") : "?";
               return (
                 <li key={s.partnerId} className="border rounded-xl p-4 bg-white dark:bg-black hover:shadow-sm transition-shadow">
