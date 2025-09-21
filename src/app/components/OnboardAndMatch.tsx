@@ -10,6 +10,8 @@ type Attendee = {
   interests?: string[];
   goals?: string[];
   availability?: string;
+  consent_intro?: boolean;
+  email?: string;
 };
 
 type Suggestion = { partnerId: string; score: number; rationale: string; _partner?: Attendee };
@@ -23,6 +25,8 @@ type FormState = {
   goals: string[];
   availability: string;
   consent_intro: boolean;
+  email?: string;
+  event_code?: string;
 };
 
 // Simple TagInput for chips-style entry
@@ -106,6 +110,8 @@ export default function OnboardAndMatch() {
     goals: [],
     availability: "",
     consent_intro: true,
+    email: "",
+    event_code: "",
   });
   const [attendee, setAttendee] = useState<Attendee | null>(null);
   const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null);
@@ -122,6 +128,59 @@ export default function OnboardAndMatch() {
     const t = setTimeout(() => setToast(null), 4000);
     return () => clearTimeout(t);
   }, [toast]);
+
+  // Soft unify: prefill from saved attendee_id and auto-load matches
+  useEffect(() => {
+    const load = async () => {
+      try {
+        if (typeof window === 'undefined') return;
+        const savedId = window.localStorage.getItem('attendee_id');
+        if (!savedId) return;
+        const res = await fetch(`/api/attendees?id=${encodeURIComponent(savedId)}`);
+        const json = await res.json();
+        if (!res.ok || !json.ok || !json.attendee) return;
+        const a = json.attendee as Attendee & { consent_intro?: boolean };
+        setAttendee(a);
+        // Prefill form fields
+        setForm((prev) => ({
+          ...prev,
+          name: a.name || "",
+          role: a.role || "",
+          company: a.company || "",
+          bio: a.bio || "",
+          interests: Array.isArray(a.interests) ? a.interests : [],
+          goals: Array.isArray(a.goals) ? a.goals : [],
+          availability: a.availability || "",
+          consent_intro: typeof a.consent_intro === 'boolean' ? a.consent_intro : true,
+          email: a.email || "",
+        }));
+        // Load matches
+        const mres = await fetch("/api/match/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ attendeeId: a.id, limit: 3 }),
+        });
+        const mjson = await mres.json();
+        if (mres.ok && mjson.ok) {
+          const sugs = (mjson.suggestions as Suggestion[]) || [];
+          setSuggestions(sugs);
+          if (sugs.length > 0) {
+            const ids = sugs.map((s: Suggestion) => s.partnerId).join(",");
+            const dres = await fetch(`/api/attendees?ids=${encodeURIComponent(ids)}`);
+            const djson = await dres.json();
+            if (dres.ok && djson.ok && Array.isArray(djson.attendees)) {
+              const map: Record<string, Attendee> = {};
+              (djson.attendees as Attendee[]).forEach((p: Attendee) => (map[p.id] = p));
+              setSuggestions(sugs.map((s) => ({ ...s, _partner: map[s.partnerId] })));
+            }
+          }
+        }
+      } catch {
+        // ignore prefill errors
+      }
+    };
+    void load();
+  }, []);
 
   const update = <K extends keyof FormState>(k: K, v: FormState[K]) => {
     setForm(prev => ({ ...prev, [k]: v }));
@@ -150,6 +209,8 @@ export default function OnboardAndMatch() {
         goals: form.goals,
         availability: form.availability.trim() || undefined,
         consent_intro: !!form.consent_intro,
+        email: (form.email || "").trim() || undefined,
+        event_code: (form.event_code || "").trim() || undefined,
       };
       // Create attendee
       const res = await fetch("/api/attendees", {
@@ -161,6 +222,8 @@ export default function OnboardAndMatch() {
       if (!res.ok || !json.ok) throw new Error(json.error || "Failed to save attendee");
       const a: Attendee = json.attendee;
       setAttendee(a);
+      // Persist attendee_id for soft unify between form and chat
+      try { if (typeof window !== 'undefined') window.localStorage.setItem('attendee_id', a.id); } catch {}
 
       // Run matching
       const mres = await fetch("/api/match/run", {
@@ -201,25 +264,27 @@ export default function OnboardAndMatch() {
   };
 
   const requestIntro = async (partnerId: string) => {
-    if (!attendee) return;
     setLoading(true);
     setError(null);
     setMessage(null);
     try {
-      const res = await fetch("/api/sensay/webhook", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event: "intro.confirm",
-          payload: { a_id: attendee.id, b_id: partnerId, status: "proposed" },
-        }),
+      // Ensure we have an attendee id
+      let meId = attendee?.id;
+      if (!meId && typeof window !== 'undefined') {
+        meId = window.localStorage.getItem('attendee_id') || undefined;
+      }
+      if (!meId) throw new Error('Please save your profile first.');
+      const res = await fetch('/api/intros/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requesterId: meId, partnerId })
       });
       const json = await res.json();
-      if (!res.ok || !json.ok) throw new Error(json.error || "Failed to create intro");
-      setMessage("Intro proposed. We will notify both parties.");
-      setToast({ text: 'Intro proposed', kind: 'success' });
+      if (!res.ok || !json.ok) throw new Error(json.error || 'Failed to request intro');
+      setMessage('Intro requested. We\'ll email your match to accept.');
+      setToast({ text: 'Intro requested', kind: 'success' });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to create intro";
+      const msg = err instanceof Error ? err.message : 'Failed to request intro';
       setError(msg);
       setToast({ text: msg, kind: 'error' });
     } finally {
@@ -228,9 +293,13 @@ export default function OnboardAndMatch() {
   };
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
+    <section id="register" className="w-full px-4 sm:px-6 lg:px-8 grid gap-6 grid-cols-1 lg:grid-cols-2 items-start">
       {/* Left: Form */}
-      <form onSubmit={submit} className="grid gap-4">
+      <form onSubmit={submit} className="grid gap-4 border rounded-2xl p-5 bg-white/70 dark:bg-black/60 backdrop-blur border-gray-200 dark:border-gray-800 w-full">
+        <header className="space-y-1">
+          <h3 className="font-semibold text-base">Register & Find Matches</h3>
+          <p className="text-xs text-gray-600 dark:text-gray-400">Tell us a bit about you. We’ll suggest the best people to meet.</p>
+        </header>
         <div className="grid gap-1">
           <label className="text-sm font-medium" htmlFor="name">Name</label>
           <input
@@ -257,6 +326,29 @@ export default function OnboardAndMatch() {
         <div className="grid gap-1">
           <label className="text-sm font-medium" htmlFor="bio">Short bio</label>
           <textarea id="bio" className="border rounded px-3 py-2 border-gray-300 dark:border-gray-700" rows={3} value={form.bio} onChange={e => update("bio", e.target.value)} placeholder="1–2 lines about you" />
+        </div>
+        <div className="grid gap-1 md:grid-cols-2 md:gap-3">
+          <div>
+            <label className="text-sm font-medium" htmlFor="email">Email (for intros/notifications)</label>
+            <input
+              id="email"
+              type="email"
+              className="border rounded px-3 py-2 w-full border-gray-300 dark:border-gray-700"
+              value={form.email || ""}
+              onChange={e => update("email", e.target.value)}
+              placeholder="you@example.com"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium" htmlFor="event_code">Event code</label>
+            <input
+              id="event_code"
+              className="border rounded px-3 py-2 w-full border-gray-300 dark:border-gray-700"
+              value={form.event_code || ""}
+              onChange={e => update("event_code", e.target.value)}
+              placeholder="e.g. devcon"
+            />
+          </div>
         </div>
         <div className="grid gap-3 md:grid-cols-2 md:gap-3">
           <TagInput
@@ -298,7 +390,7 @@ export default function OnboardAndMatch() {
       </form>
 
       {/* Right: Matches panel */}
-      <aside className="md:sticky md:top-4 h-fit space-y-3">
+      <aside className="h-fit space-y-3 border rounded-2xl p-5 bg-white/70 dark:bg-black/60 backdrop-blur border-gray-200 dark:border-gray-800 overflow-hidden w-full">
         <h3 className="font-semibold text-base">Live matches</h3>
         {!attendee && (
           <div className="text-sm text-gray-600">Fill in your profile and save to see suggestions here.</div>
@@ -326,7 +418,7 @@ export default function OnboardAndMatch() {
                 const partner = s._partner as Attendee | undefined;
                 const initials = partner?.name ? partner.name.split(/\s+/).slice(0,2).map(n=>n[0]?.toUpperCase()).join("") : "?";
                 return (
-                  <li key={s.partnerId} className="relative border rounded-xl p-4 bg-white dark:bg-black hover:shadow-sm transition-all">
+                  <li key={s.partnerId} className="relative border rounded-xl p-4 bg-white dark:bg-black hover:shadow-sm transition-all overflow-hidden">
                     <span className="absolute right-3 top-3 text-[11px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
                       {Math.round(s.score)}
                     </span>
@@ -343,10 +435,10 @@ export default function OnboardAndMatch() {
                         </div>
                         <div className="mt-1 flex flex-wrap gap-1">
                           {Array.isArray(partner?.interests) && partner!.interests!.slice(0,3).map((t) => (
-                            <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">{t}</span>
+                            <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 break-words max-w-[10rem]">{t}</span>
                           ))}
                         </div>
-                        <div className="text-xs text-gray-600 mt-1 truncate">{s.rationale}</div>
+                        <div className="text-xs text-gray-600 mt-1 break-words line-clamp-3">{s.rationale}</div>
                       </div>
                       <div className="ml-auto flex items-center gap-2 shrink-0">
                         <button onClick={() => setExpanded(prev => ({ ...prev, [s.partnerId]: !prev[s.partnerId] }))} className="text-xs rounded-md border px-2.5 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-900">
@@ -358,14 +450,14 @@ export default function OnboardAndMatch() {
                       </div>
                     </div>
                     {expanded[s.partnerId] && partner && (
-                      <div className="mt-3 text-sm text-gray-700 dark:text-gray-300 transition-all">
-                        {partner.bio && <p className="mb-2">{partner.bio}</p>}
+                      <div className="mt-3 text-sm text-gray-700 dark:text-gray-300 transition-all break-words">
+                        {partner.bio && <p className="mb-2 break-words">{partner.bio}</p>}
                         <div className="flex flex-wrap gap-1.5">
                           {(partner.interests || []).map((t) => (
-                            <span key={`i-${t}`} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">{t}</span>
+                            <span key={`i-${t}`} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 break-words max-w-[12rem]">{t}</span>
                           ))}
                           {(partner.goals || []).map((t) => (
-                            <span key={`g-${t}`} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">{t}</span>
+                            <span key={`g-${t}`} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 break-words max-w-[12rem]">{t}</span>
                           ))}
                         </div>
                       </div>
@@ -379,7 +471,7 @@ export default function OnboardAndMatch() {
         {error && <div className="text-red-600 text-sm">{error}</div>}
         {message && <div className="text-green-700 text-sm">{message}</div>}
         {attendee && (
-          <div className="text-xs text-gray-600">Your ID: <code>{attendee.id}</code></div>
+          <div className="text-xs text-gray-600">Your ID: <code className="break-words">{attendee.id}</code></div>
         )}
       </aside>
 
@@ -394,6 +486,6 @@ export default function OnboardAndMatch() {
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }

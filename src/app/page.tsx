@@ -2,7 +2,6 @@ import Navbar from "./components/site/Navbar";
 import Hero from "./components/site/Hero";
 import Features from "./components/site/Features";
 import HowItWorks from "./components/site/HowItWorks";
-import RegisterSection from "./components/site/RegisterSection";
 import Footer from "./components/site/Footer";
 
 export default function Home() {
@@ -13,7 +12,6 @@ export default function Home() {
         <Hero />
         <Features />
         <HowItWorks />
-        <RegisterSection />
       </main>
       <Footer />
     </div>

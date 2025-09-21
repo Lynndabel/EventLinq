@@ -1,7 +1,6 @@
 "use client";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import OnboardAndMatch from "./components/OnboardAndMatch";
 import WidgetConfigurator from "./components/WidgetConfigurator";
 
 export default function ClientHome() {
@@ -62,7 +61,7 @@ export default function ClientHome() {
           <section className="space-y-6 lg:col-span-7">
             <h1 className="text-4xl lg:text-5xl font-bold leading-tight tracking-tight">Match with the right people, faster</h1>
             <p className="text-lg text-gray-700 dark:text-gray-300 max-w-2xl">
-              EventLinq uses AI to understand your goals and connect you with highly relevant people.
+              EventLinq uses Sensay AI to understand your goals and connect you with highly relevant people.
               Approvals are consent-based and intros are coordinated for you.
             </p>
             <div className="flex flex-wrap gap-3 pt-2">
@@ -80,16 +79,10 @@ export default function ClientHome() {
             </ul>
           </section>
           <section id="try-it" className="lg:col-span-5 w-full">
-            <div className="gradient-border lg:sticky lg:top-24">
-              <div className="gradient-inner rounded-2xl p-6 shadow-sm bg-white/80 dark:bg-black/80 backdrop-blur">
-                <h2 className="font-semibold mb-1">Register & Find Matches</h2>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
-                  Use the chat widget or the form to get matched. We only introduce you when you confirm.
-                </p>
-                <div className="mt-6">
-                  <OnboardAndMatch />
-                </div>
-              </div>
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-800 p-6 bg-white/70 dark:bg-black/70 backdrop-blur">
+              <h2 className="font-semibold mb-1">Try it in Chat</h2>
+              <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">Onboard in chat and get your matches instantly.</p>
+              <a href="/chat" className="btn-primary rounded-md px-4 py-2 text-sm shadow inline-block">Open Chat</a>
             </div>
           </section>
         </div>

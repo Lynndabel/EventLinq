@@ -12,7 +12,11 @@ create table if not exists attendees (
   goals text[] default '{}',
   availability text,
   channel text default 'web',
-  consent_intro boolean default false
+  consent_intro boolean default false,
+  email text,
+  event_id uuid,
+  telegram text,
+  x_handle text
 );
 
 create table if not exists matches (
@@ -37,3 +41,13 @@ create table if not exists intros (
 create index if not exists idx_matches_attendee on matches(attendee_id);
 create index if not exists idx_matches_partner on matches(partner_id);
 create index if not exists idx_intros_pair on intros(a_id, b_id);
+
+-- Events to scope matching
+create table if not exists events (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  slug text unique not null,
+  name text
+);
+
+create index if not exists idx_attendees_event on attendees(event_id);

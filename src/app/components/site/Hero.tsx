@@ -13,7 +13,7 @@ export default function Hero() {
             Connect with the right people — faster
           </h1>
           <p className="text-lg text-gray-700 dark:text-gray-300 max-w-2xl">
-            EventLinq uses AI to understand your goals and match you with highly relevant attendees.
+            EventLinq uses Sensay AI to understand your goals and match you with highly relevant attendees.
             Consent-first intros. Simple coordination.
           </p>
           {/* Icon badges */}
