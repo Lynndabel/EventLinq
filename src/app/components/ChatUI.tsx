@@ -32,6 +32,140 @@ export default function ChatUI() {
   const [busy, setBusy] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
+  // Show my current intros with contact buttons
+  const renderMyIntros = async (id: string) => {
+    try {
+      const res = await fetch(`/api/intros/mine?attendeeId=${encodeURIComponent(id)}`);
+      const json = await res.json();
+      if (!res.ok || !json.ok) return;
+      const items = json.intros as Array<{ id: string; status: string; partner: Attendee }>;
+      if (!items || items.length === 0) return;
+      push({ id: crypto.randomUUID(), role: 'assistant', text: 'Your intros:', rich: (
+        <ul className="mt-2 space-y-2">
+          {items.map((it) => {
+            const p = it.partner;
+            const toUser = (raw?: string | null) => {
+              if (!raw) return '';
+              let s = String(raw).trim();
+              s = s.replace(/^@/, '');
+              if (/^https?:\/\//i.test(s)) {
+                try {
+                  const u = new URL(s);
+                  const parts = u.pathname.split('/').filter(Boolean);
+                  if (parts[0]) s = parts[0];
+                } catch {}
+              }
+              return s;
+            };
+            const tHandle = toUser(p.telegram);
+            const xHandle = toUser(p.x_handle);
+            const xLink = xHandle ? `https://x.com/${xHandle}` : null;
+            return (
+              <li key={it.id} className="border rounded-lg p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium truncate">{p.name || p.id}</div>
+                    <div className="text-xs text-gray-600 truncate">Status: {it.status}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {it.status !== 'accepted' ? (
+                      <>
+                        <button className="text-xs rounded-md border px-2 py-1" onClick={() => actOnIntro(it.id, 'accept')}>Accept</button>
+                        <button className="text-xs rounded-md border px-2 py-1" onClick={() => actOnIntro(it.id, 'decline')}>Decline</button>
+                      </>
+                    ) : (
+                      <>
+                        {tHandle && (
+                          <a
+                            className="text-xs rounded-md border px-2 py-1"
+                            href={`https://t.me/${tHandle}`}
+                            onClick={() => {
+                              try {
+                                const app = `tg://resolve?domain=${tHandle}`;
+                                // Try open app first
+                                window.location.href = app;
+                                // Fallback to web after a short delay
+                                setTimeout(() => {
+                                  window.open(`https://t.me/${tHandle}`, '_blank');
+                                }, 400);
+                              } catch {}
+                            }}
+                            target="_blank"
+                          >
+                            Open Telegram
+                          </a>
+                        )}
+                        {xLink && <a className="text-xs rounded-md border px-2 py-1" href={xLink} target="_blank">Open X</a>}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )});
+    } catch {}
+  };
+
+  // Run matching and render suggestions
+  const runMatching = async (id: string) => {
+    try {
+      setLoading(true);
+      const mres = await fetch("/api/match/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ attendeeId: id, limit: 3 }) });
+      const mjson = await mres.json();
+      if (!mres.ok || !mjson.ok) throw new Error(mjson.error || "Failed to run matching");
+      const sugs: Suggestion[] = mjson.suggestions || [];
+      setSuggestions(sugs);
+      if (sugs.length === 0) {
+        push({ id: crypto.randomUUID(), role: "assistant", text: "No matches yet. Try again shortly or invite more attendees." });
+        return;
+      }
+      // enrich
+      const ids = sugs.map((s) => s.partnerId).join(",");
+      const dres = await fetch(`/api/attendees?ids=${encodeURIComponent(ids)}`);
+      const djson = await dres.json();
+      const map: Record<string, Attendee> = {};
+      if (dres.ok && djson.ok && Array.isArray(djson.attendees)) {
+        for (const a of djson.attendees as Attendee[]) map[a.id!] = a;
+      }
+      push({ id: crypto.randomUUID(), role: "assistant", text: "Top suggestions:", rich: (
+        <ul className="mt-2 space-y-2">
+          {sugs.map((s) => {
+            const p = map[s.partnerId];
+            const name = p?.name || s.partnerId;
+            return (
+              <li key={s.partnerId} className="border rounded-lg p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium truncate">{name}</div>
+                    <div className="text-xs text-gray-600 truncate">{s.rationale}</div>
+                  </div>
+                  <button
+                    className="text-xs rounded-md border px-2 py-1"
+                    style={{ background: 'var(--accent)' }}
+                    onClick={() => requestIntro(s.partnerId)}
+                  >
+                    {myId ? 'Request Intro' : 'Saving profile…'}
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      ),
+    });
+
+    // Also show your current intros
+    await renderMyIntros(id);
+  } catch (e) {
+    push({ id: crypto.randomUUID(), role: "assistant", text: e instanceof Error ? e.message : "Failed to run matching" });
+  } finally {
+    setLoading(false);
+  }
+};
+
+  // Initialize chat state; re-run if eventCode changes (URL scope) or matching function identity updates
   useEffect(() => {
     // If we have a saved attendee, load and jump ahead; else intro message
     const init = async () => {
@@ -287,146 +421,6 @@ export default function ChatUI() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const runMatching = async (id: string) => {
-    try {
-      setLoading(true);
-      const mres = await fetch("/api/match/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ attendeeId: id, limit: 3 }) });
-      const mjson = await mres.json();
-      if (!mres.ok || !mjson.ok) throw new Error(mjson.error || "Failed to run matching");
-      const sugs: Suggestion[] = mjson.suggestions || [];
-      setSuggestions(sugs);
-      if (sugs.length === 0) {
-        push({ id: crypto.randomUUID(), role: "assistant", text: "No matches yet. Try again shortly or invite more attendees." });
-        return;
-      }
-      // enrich
-      const ids = sugs.map((s) => s.partnerId).join(",");
-      const dres = await fetch(`/api/attendees?ids=${encodeURIComponent(ids)}`);
-      const djson = await dres.json();
-      const map: Record<string, Attendee> = {};
-      if (dres.ok && djson.ok && Array.isArray(djson.attendees)) {
-        (djson.attendees as Attendee[]).forEach((p) => (map[p.id!] = p));
-      }
-      // render as a rich assistant message
-      push({
-        id: crypto.randomUUID(),
-        role: "assistant",
-        text: "Here are your top matches:",
-        rich: (
-          <ul className="mt-2 space-y-2">
-            {sugs.map((s) => {
-              const p = map[s.partnerId];
-              const initials = p?.name ? p.name.split(/\s+/).slice(0, 2).map((n) => n[0]?.toUpperCase()).join("") : "?";
-              return (
-                <li key={s.partnerId} className="border rounded-lg p-3 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-xs font-semibold">{initials}</div>
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium truncate">{p?.name || s.partnerId}</div>
-                      <div className="text-xs text-gray-600 truncate">{[p?.role, p?.company].filter(Boolean).join(" • ")}</div>
-                      <div className="text-[10px] text-gray-600 mt-1 truncate">{s.rationale} • Score {s.score.toFixed(2)}</div>
-                    </div>
-                  </div>
-                  <button
-                    disabled={!myId}
-                    className="text-xs rounded-md text-white px-3 py-1.5 hover:opacity-90 whitespace-nowrap disabled:opacity-60"
-                    style={{ background: 'var(--accent)' }}
-                    onClick={() => requestIntro(s.partnerId)}
-                  >
-                    {myId ? 'Request Intro' : 'Saving profile…'}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        ),
-      });
-
-      // Also show your current intros
-      await renderMyIntros(id);
-    } catch (e) {
-      push({ id: crypto.randomUUID(), role: "assistant", text: e instanceof Error ? e.message : "Failed to run matching" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const renderMyIntros = async (id: string) => {
-    try {
-      const res = await fetch(`/api/intros/mine?attendeeId=${encodeURIComponent(id)}`);
-      const json = await res.json();
-      if (!res.ok || !json.ok) return;
-      const items = json.intros as Array<{ id: string; status: string; partner: Attendee }>;
-      if (!items || items.length === 0) return;
-      push({ id: crypto.randomUUID(), role: 'assistant', text: 'Your intros:', rich: (
-        <ul className="mt-2 space-y-2">
-          {items.map((it) => {
-            const p = it.partner;
-            const toUser = (raw?: string | null) => {
-              if (!raw) return '';
-              let s = String(raw).trim();
-              s = s.replace(/^@/, '');
-              if (/^https?:\/\//i.test(s)) {
-                try {
-                  const u = new URL(s);
-                  const parts = u.pathname.split('/').filter(Boolean);
-                  if (parts[0]) s = parts[0];
-                } catch {}
-              }
-              return s;
-            };
-            const tHandle = toUser(p.telegram);
-            const xHandle = toUser(p.x_handle);
-            const tLink = tHandle ? `https://t.me/${tHandle}` : null;
-            const xLink = xHandle ? `https://x.com/${xHandle}` : null;
-            return (
-              <li key={it.id} className="border rounded-lg p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium truncate">{p.name || p.id}</div>
-                    <div className="text-xs text-gray-600 truncate">Status: {it.status}</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {it.status !== 'accepted' ? (
-                      <>
-                        <button className="text-xs rounded-md border px-2 py-1" onClick={() => actOnIntro(it.id, 'accept')}>Accept</button>
-                        <button className="text-xs rounded-md border px-2 py-1" onClick={() => actOnIntro(it.id, 'decline')}>Decline</button>
-                      </>
-                    ) : (
-                      <>
-                        {tHandle && (
-                          <a
-                            className="text-xs rounded-md border px-2 py-1"
-                            href={`https://t.me/${tHandle}`}
-                            onClick={(e) => {
-                              try {
-                                const app = `tg://resolve?domain=${tHandle}`;
-                                // Try open app first
-                                window.location.href = app;
-                                // Fallback to web after a short delay
-                                setTimeout(() => {
-                                  window.open(`https://t.me/${tHandle}`, '_blank');
-                                }, 400);
-                              } catch {}
-                            }}
-                            target="_blank"
-                          >
-                            Open Telegram
-                          </a>
-                        )}
-                        {xLink && <a className="text-xs rounded-md border px-2 py-1" href={xLink} target="_blank">Open X</a>}
-                      </>
-                    )}
-                  </div>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )});
-    } catch {}
   };
 
   const actOnIntro = async (introId: string, action: 'accept'|'decline') => {

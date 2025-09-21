@@ -88,12 +88,14 @@ export async function getSuggestions(attendeeId: string, limit = 3): Promise<Sug
   const othersRes = await query
 
   if (othersRes.error || !othersRes.data) return []
+  const MIN_SCORE = Number.parseFloat(process.env.NEXT_PUBLIC_MIN_MATCH_SCORE || '0.3')
   const scored = othersRes.data.map(o => {
     const tagSim = jaccard(me.interests || [], o.interests || [])
     const goalSim = jaccard(me.goals || [], o.goals || [])
     const availSim = availabilityOverlap(me.availability, o.availability)
-    const compBonus = complementaryRoles(me.role, o.role) ? 0.05 : 0
-    const overlapBonus = interestsOverlapCount(me.interests || [], o.interests || []) >= 2 ? 0.05 : 0
+    const hasSignal = tagSim > 0 || goalSim > 0
+    const compBonus = hasSignal && complementaryRoles(me.role, o.role) ? 0.05 : 0
+    const overlapBonus = hasSignal && interestsOverlapCount(me.interests || [], o.interests || []) >= 2 ? 0.05 : 0
     const sameCompanyPenalty = me.company && o.company && me.company.toLowerCase().trim() === o.company.toLowerCase().trim() ? -0.05 : 0
     // Weights: interests 0.6, goals 0.3, availability 0.1; plus small comp bonus
     let score = tagSim * 0.6 + goalSim * 0.3 + availSim * 0.1 + compBonus + overlapBonus + sameCompanyPenalty
@@ -101,6 +103,14 @@ export async function getSuggestions(attendeeId: string, limit = 3): Promise<Sug
     if (score < 0) score = 0
     return { partnerId: o.id, score, rationale: rationale(me, o) }
   })
-  scored.sort((a, b) => b.score - a.score)
-  return scored.slice(0, limit)
+  // Filter out clearly unrelated pairs
+  const filtered = scored.filter((s, i) => {
+    const partner = othersRes.data[i]
+    const tagSim = jaccard(me.interests || [], partner.interests || [])
+    const goalSim = jaccard(me.goals || [], partner.goals || [])
+    // Require some signal in interests or goals AND pass min score
+    return (tagSim > 0 || goalSim > 0) && s.score >= MIN_SCORE
+  })
+  filtered.sort((a, b) => b.score - a.score)
+  return filtered.slice(0, limit)
 }
