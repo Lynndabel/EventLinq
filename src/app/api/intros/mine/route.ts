@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       if (partnerId) partnerIds.add(partnerId)
     }
 
-    let partners: Record<string, any> = {}
+    const partners: Record<string, { id: string; name?: string; role?: string; company?: string; telegram?: string; x_handle?: string }> = {}
     if (partnerIds.size) {
       const { data: people, error: perr } = await supabase
         .from('attendees')

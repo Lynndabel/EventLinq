@@ -122,7 +122,7 @@ export default function MatchesPage() {
                 e.preventDefault();
                 if (!meId) return;
                 try {
-                  const body: Partial<Attendee> & { id: string } = { id: meId } as any;
+                  const body: Partial<Attendee> & { id: string } = { id: meId };
                   body.telegram = tVal ? tVal.replace(/^@/, '') : undefined;
                   body.x_handle = xVal ? xVal.replace(/^@/, '') : undefined;
                   const res = await fetch('/api/attendees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -130,8 +130,8 @@ export default function MatchesPage() {
                   if (!res.ok || !js.ok) throw new Error(js.error || 'Failed to save');
                   setNotice('Contact updated');
                   setEditOpen(false);
-                } catch (err) {
-                  setNotice(err instanceof Error ? err.message : 'Failed to save');
+                } catch {
+                  setNotice('Failed to save');
                 }
               }}>
                 <div>
@@ -190,7 +190,6 @@ export default function MatchesPage() {
                 };
                 const tHandle = toUser(p.telegram);
                 const xHandle = toUser(p.x_handle);
-                const tLink = tHandle ? `https://t.me/${tHandle}` : null;
                 const xLink = xHandle ? `https://x.com/${xHandle}` : null;
                 const initials = p.name ? p.name.split(/\s+/).slice(0, 2).map((n) => n[0]?.toUpperCase()).join("") : "?";
                 return (
@@ -215,7 +214,7 @@ export default function MatchesPage() {
                               <a
                                 className="text-xs rounded-md border px-2.5 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-900"
                                 href={`https://t.me/${tHandle}`}
-                                onClick={(e) => {
+                                onClick={() => {
                                   try {
                                     const app = `tg://resolve?domain=${tHandle}`;
                                     window.location.href = app;
@@ -286,7 +285,7 @@ export default function MatchesPage() {
                             const json = await res.json();
                             if (res.ok && json.ok) setNotice('Intro requested. Your match can accept in-app.');
                             else setNotice(json.error || 'Failed to request intro');
-                          } catch (e) { setNotice('Failed to request intro'); }
+                          } catch { setNotice('Failed to request intro'); }
                         }}
                         className="text-xs rounded-md border px-2.5 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-900 disabled:opacity-50"
                       >

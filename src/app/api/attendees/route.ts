@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     if (typeof event_code === 'string' && event_code.trim()) {
       const slug = event_code.trim().toLowerCase()
       const found = await supabase.from('events').select('id, slug').eq('slug', slug).maybeSingle()
-      if ((found as any).error) {
+      if (found.error) {
         // ignore lookup errors; proceed without event
       } else if (found.data?.id) {
         event_id = found.data.id as string
@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
     } else if (event_code) {
       const slug = event_code.trim().toLowerCase()
       const found = await supabase.from('events').select('id').eq('slug', slug).maybeSingle()
-      const evId = (found as any)?.data?.id as string | undefined
+      const evId = found.data?.id as string | undefined
       if (evId) query = query.eq('event_id', evId)
       else return NextResponse.json({ ok: true, attendees: [] })
     }
