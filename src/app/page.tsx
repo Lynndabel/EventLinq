@@ -3,6 +3,7 @@ import Hero from "./components/site/Hero";
 import Features from "./components/site/Features";
 import HowItWorks from "./components/site/HowItWorks";
 import Footer from "./components/site/Footer";
+import EventLinkHelper from "./components/site/EventLinkHelper";
 
 export default function Home() {
   return (
@@ -12,6 +13,7 @@ export default function Home() {
         <Hero />
         <Features />
         <HowItWorks />
+        <EventLinkHelper />
       </main>
       <Footer />
     </div>

@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Hero() {
   return (
@@ -32,9 +33,6 @@ export default function Hero() {
             </span>
           </div>
           <div className="flex flex-wrap gap-3 pt-1">
-            <a href="#register" className="btn-primary rounded-md px-5 py-2.5 text-sm shadow">
-              Get Started
-            </a>
             <Link href="/chat" className="rounded-md border border-gray-200 dark:border-gray-800 px-5 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-900">
               Open Chat
             </Link>
@@ -47,29 +45,15 @@ export default function Hero() {
         </div>
         <div className="lg:col-span-5">
           <div className="rounded-2xl border border-gray-200 dark:border-gray-800 p-6 bg-white/60 dark:bg-black/60 backdrop-blur">
-            <div className="relative h-56 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800">
-              <svg viewBox="0 0 400 200" className="absolute inset-0 h-full w-full">
-                <defs>
-                  <linearGradient id="heroG" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#7c3aed"/>
-                    <stop offset="100%" stopColor="#22d3ee"/>
-                  </linearGradient>
-                </defs>
-                <rect x="0" y="0" width="400" height="200" fill="url(#heroG)" opacity="0.1" />
-                <g fill="none" stroke="url(#heroG)" opacity="0.6">
-                  {Array.from({ length: 10 }).map((_, i) => (
-                    <circle key={i} cx={200} cy={100} r={15 + i * 15} />
-                  ))}
-                </g>
-                <g>
-                  <circle cx="110" cy="70" r="18" fill="#fff" />
-                  <text x="110" y="75" textAnchor="middle" fontSize="10" fill="#111">AI</text>
-                  <circle cx="280" cy="120" r="18" fill="#fff" />
-                  <text x="280" y="125" textAnchor="middle" fontSize="10" fill="#111">UX</text>
-                  <circle cx="210" cy="40" r="18" fill="#fff" />
-                  <text x="210" y="45" textAnchor="middle" fontSize="10" fill="#111">PM</text>
-                </g>
-              </svg>
+            <div className="relative rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800">
+              <Image
+                src="/hero.jpg"
+                alt="EventLinq product preview"
+                width={800}
+                height={400}
+                className="w-full h-auto transform -scale-x-100"
+                priority
+              />
             </div>
           </div>
         </div>

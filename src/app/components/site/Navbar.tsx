@@ -12,10 +12,8 @@ export default function Navbar() {
         </Link>
         <nav className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-4">
           <a className="hover:underline" href="#how-it-works">How it works</a>
-          <a className="hover:underline" href="#features">Features</a>
           <Link className="hover:underline" href="/matches">Matches</Link>
           <Link className="hover:underline" href="/chat">Chat</Link>
-          <a href="#register" className="btn-primary rounded-md px-3 py-1.5 text-xs shadow">Get Started</a>
         </nav>
       </div>
     </header>

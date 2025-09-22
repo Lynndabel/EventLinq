@@ -1,5 +1,5 @@
 "use client";
-import OnboardAndMatch from "../OnboardAndMatch";
+import Link from "next/link";
 
 export default function RegisterSection() {
   return (
@@ -9,12 +9,12 @@ export default function RegisterSection() {
           <div className="gradient-border">
             <div className="gradient-inner rounded-2xl p-6 shadow-sm bg-white/80 dark:bg-black/80 backdrop-blur">
               <h2 className="font-semibold mb-1">Register & Find Matches</h2>
-              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
-                Use the form to get matched. We only introduce you when you confirm.
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-4">
+                Get started in Chat. We only introduce you when both sides consent.
               </p>
-              <div className="mt-6">
-                <OnboardAndMatch />
-              </div>
+              <Link href="/chat" className="inline-flex items-center justify-center rounded-md px-3 py-2 text-xs text-white shadow" style={{ background: 'var(--accent)' }}>
+                Open Chat
+              </Link>
             </div>
           </div>
         </div>

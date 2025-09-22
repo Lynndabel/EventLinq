@@ -11,6 +11,7 @@ export default function HowItWorks() {
         <ol className="grid gap-6 md:grid-cols-3">
           {steps.map((s) => (
             <li key={s.n} className="rounded-2xl border border-gray-200 dark:border-gray-800 p-6 bg-white/60 dark:bg-black/60 backdrop-blur">
+              <div className="h-1 w-10 rounded-full bg-gradient-to-r from-[#7c3aed] to-[#22d3ee] mb-2" />
               <div className="text-xs text-gray-500 mb-2">Step {s.n}</div>
               <h3 className="font-medium mb-1">{s.t}</h3>
               <p className="text-sm text-gray-600 dark:text-gray-300">{s.d}</p>
