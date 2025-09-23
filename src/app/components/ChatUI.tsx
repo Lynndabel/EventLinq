@@ -146,7 +146,7 @@ export default function ChatUI() {
                     style={{ background: 'var(--accent)' }}
                     onClick={() => requestIntro(s.partnerId)}
                   >
-                    {myId ? 'Request Intro' : 'Saving profile…'}
+                    {myId ? 'Request Intro' : 'Profile'}
                   </button>
                 </div>
               </li>
@@ -272,13 +272,23 @@ export default function ChatUI() {
       return;
     }
     if (a.bio === undefined) {
-      a.bio = trimmed.toLowerCase() === "skip" ? undefined : trimmed;
+      const t = trimmed.trim();
+      if (!t || /^skip$/i.test(t)) {
+        push({ id: crypto.randomUUID(), role: "assistant", text: "Please add a short bio (1–2 lines)." });
+        return;
+      }
+      a.bio = t;
       setAttendee(a);
-      // Skip email request; users can add it later in profile if needed
+      // Proceed to event scoping
+      if (eventCode) {
+        a.event_code = eventCode;
+        setAttendee(a);
+        push({ id: crypto.randomUUID(), role: "assistant", text: "Your Telegram username (optional, say 'skip'), e.g., @alice" });
+        return;
+      }
       push({ id: crypto.randomUUID(), role: "assistant", text: "Event code (optional, e.g., devcon). You can also say 'skip'." });
       return;
     }
-    // removed explicit email prompt
     if (a.event_code === undefined) {
       // If the page is scoped by ?event=..., silently set it and continue
       if (eventCode) {
@@ -288,9 +298,7 @@ export default function ChatUI() {
         return;
       }
       const t = trimmed.trim();
-      if (t.toLowerCase() !== 'skip') {
-        a.event_code = t;
-      }
+      if (t.toLowerCase() !== 'skip') { a.event_code = t; }
       setAttendee(a);
       push({ id: crypto.randomUUID(), role: "assistant", text: "Your Telegram username (optional, say 'skip'), e.g., @alice" });
       return;
@@ -517,7 +525,11 @@ export default function ChatUI() {
       });
       const json = await res.json();
       if (!res.ok || !json.ok) throw new Error(json.error || 'Failed to request intro');
-      push({ id: crypto.randomUUID(), role: 'assistant', text: 'Intro requested. Your match can accept in-app.' });
+      if (json.note === 'existing_intro') {
+        push({ id: crypto.randomUUID(), role: 'assistant', text: 'Intro already requested. Waiting for response.' });
+      } else {
+        push({ id: crypto.randomUUID(), role: 'assistant', text: 'Intro requested. Your match can accept in-app.' });
+      }
     } catch (e) {
       push({ id: crypto.randomUUID(), role: "assistant", text: e instanceof Error ? e.message : "Failed to create intro" });
     } finally {

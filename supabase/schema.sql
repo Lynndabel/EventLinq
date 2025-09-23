@@ -42,6 +42,11 @@ create index if not exists idx_matches_attendee on matches(attendee_id);
 create index if not exists idx_matches_partner on matches(partner_id);
 create index if not exists idx_intros_pair on intros(a_id, b_id);
 
+-- Ensure only one active intro per pair (order-agnostic) when status is proposed or accepted
+create unique index if not exists uniq_active_intro_pair
+on intros ((LEAST(a_id, b_id)), (GREATEST(a_id, b_id)))
+where status in ('proposed','accepted');
+
 -- Events to scope matching
 create table if not exists events (
   id uuid primary key default gen_random_uuid(),

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Navbar from "../components/site/Navbar";
 
 type Attendee = {
   id: string;
@@ -14,7 +15,7 @@ type Attendee = {
   event_id?: string;
 };
 
-type Tab = "all" | "pending" | "confirmed";
+type Tab = "all" | "pending" | "confirmed" | "declined";
 
 export default function MatchesPage() {
   const [tab, setTab] = useState<Tab>("all");
@@ -74,9 +75,16 @@ export default function MatchesPage() {
     { key: "all", label: "All" },
     { key: "pending", label: "Pending" },
     { key: "confirmed", label: "Confirmed" },
+    { key: "declined", label: "Declined" },
   ];
 
   const list = attendees; // backend wiring for statuses can be added later
+  const filteredIntros = intros.filter((it) => {
+    if (tab === 'pending') return it.status === 'proposed';
+    if (tab === 'confirmed') return it.status === 'accepted';
+    if (tab === 'declined') return it.status === 'declined';
+    return true;
+  });
 
   async function loadIntros(attendeeId: string) {
     try {
@@ -105,8 +113,10 @@ export default function MatchesPage() {
   }
 
   return (
-    <main className="px-6 pt-16 pb-16">
-      <div className="max-w-7xl mx-auto">
+    <div className="font-sans min-h-screen grid grid-rows-[auto_1fr] bg-white dark:bg-black">
+      <Navbar />
+      <main className="px-6 pt-16 pb-16">
+        <div className="max-w-7xl mx-auto">
         <h1 className="text-2xl font-semibold mb-4">Matches</h1>
         {/* Contact editor */}
         {meId && (
@@ -169,12 +179,14 @@ export default function MatchesPage() {
           ))}
         </div>
 
-        {/* Your intros (in-app acceptance and contact without email) */}
-        {meId && intros.length > 0 && (
+        {/* Your intros (filtered by tab if not 'all') */}
+        {meId && (tab !== 'all') && (
           <section className="mb-8">
-            <h2 className="text-lg font-medium mb-2">Your intros</h2>
+            <h2 className="text-lg font-medium mb-2">{
+              tab === 'pending' ? 'Pending intros' : tab === 'confirmed' ? 'Confirmed intros' : 'Declined intros'
+            }</h2>
             <ul className="space-y-2">
-              {intros.map((it) => {
+              {filteredIntros.map((it) => {
                 const p = it.partner;
                 const toUser = (raw?: string) => {
                   if (!raw) return '';
@@ -203,12 +215,13 @@ export default function MatchesPage() {
                         <div className="text-xs text-gray-600 truncate">Status: {it.status}</div>
                       </div>
                       <div className="ml-auto flex items-center gap-2 shrink-0">
-                        {it.status !== 'accepted' ? (
+                        {it.status === 'proposed' && (
                           <>
                             <button className="text-xs rounded-md border px-2.5 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-900" onClick={() => actOnIntro(it.id, 'accept')}>Accept</button>
                             <button className="text-xs rounded-md border px-2.5 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-900" onClick={() => actOnIntro(it.id, 'decline')}>Decline</button>
                           </>
-                        ) : (
+                        )}
+                        {it.status === 'accepted' && (
                           <>
                             {tHandle && (
                               <a
@@ -237,8 +250,7 @@ export default function MatchesPage() {
             </ul>
           </section>
         )}
-
-        {loading ? (
+        {tab === 'all' && (loading ? (
           <ul className="space-y-2">
             {Array.from({ length: 4 }).map((_, i) => (
               <li key={i} className="border rounded-xl p-4 bg-white dark:bg-black">
@@ -283,7 +295,10 @@ export default function MatchesPage() {
                               body: JSON.stringify({ requesterId: meId, partnerId: p.id })
                             });
                             const json = await res.json();
-                            if (res.ok && json.ok) setNotice('Intro requested. Your match can accept in-app.');
+                            if (res.ok && json.ok) {
+                              if (json.note === 'existing_intro') setNotice('Intro already requested. Waiting for response.');
+                              else setNotice('Intro requested. Your match can accept in-app.');
+                            }
                             else setNotice(json.error || 'Failed to request intro');
                           } catch { setNotice('Failed to request intro'); }
                         }}
@@ -297,16 +312,9 @@ export default function MatchesPage() {
               );
             })}
           </ul>
-        )}
-        {/* Toast */}
-        {notice && (
-          <div className="fixed bottom-6 right-6 z-50">
-            <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white/90 dark:bg-black/90 backdrop-blur px-4 py-3 shadow text-sm text-gray-800 dark:text-gray-200">
-              {notice}
-            </div>
-          </div>
-        )}
-      </div>
-    </main>
+        ))}
+        </div>
+      </main>
+    </div>
   );
 }

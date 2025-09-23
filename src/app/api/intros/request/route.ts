@@ -20,6 +20,20 @@ export async function POST(req: NextRequest) {
     const requester = reqRes.data as { id: string; name?: string | null; email?: string | null }
     const partner = parRes.data as { id: string; name?: string | null; email?: string | null }
 
+    // Prevent duplicate intros: look for existing between A and B in either direction
+    const existingRes = await supabase
+      .from('intros')
+      .select('id, status, created_at')
+      .or(`and(a_id.eq.${requester.id},b_id.eq.${partner.id}),and(a_id.eq.${partner.id},b_id.eq.${requester.id})`)
+      .in('status', ['proposed', 'accepted'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+    if (existingRes.data && existingRes.data.length > 0) {
+      const ex = existingRes.data[0]
+      // Return existing intro; do not create a duplicate
+      return NextResponse.json({ ok: true, introId: ex.id, note: 'existing_intro' })
+    }
+
     // Create intro as proposed
     const { data: intro, error } = await supabase
       .from('intros')
