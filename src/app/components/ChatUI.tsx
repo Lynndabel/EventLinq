@@ -31,6 +31,7 @@ export default function ChatUI() {
   const [eventCode, setEventCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Show my current intros with contact buttons
   const renderMyIntros = async (id: string) => {
@@ -251,7 +252,48 @@ export default function ChatUI() {
     if (!trimmed) return;
     push({ id: crypto.randomUUID(), role: "user", text: trimmed });
 
-    // simple step flow based on what is still missing
+    // 1) Commands should take precedence over onboarding steps
+    // Switch event: 'event:slug' or 'event slug'
+    const evCmd = trimmed.match(/^event\s*[: ]\s*([a-z0-9_-]+)$/i);
+    if (evCmd) {
+      const slug = evCmd[1].toLowerCase();
+      setEventCode(slug);
+      setAttendee((prev) => ({ ...prev, event_code: slug }));
+      push({ id: crypto.randomUUID(), role: 'assistant', text: `Event updated to '${slug}'. Finding matches…` });
+      // If we already have an attendee id, run matching now; else wait for onboarding save
+      const id = attendee.id || (typeof window !== 'undefined' ? window.localStorage.getItem('attendee_id') : null);
+      if (id) {
+        await runMatching(id);
+      } else {
+        push({ id: crypto.randomUUID(), role: 'assistant', text: "I'll use this event once we complete your onboarding." });
+      }
+      return;
+    }
+
+    // Edit commands: set field: value (quick updates)
+    const setCmd = trimmed.match(/^set\s+(name|role|company|availability)\s*:\s*(.+)$/i);
+    if (setCmd) {
+      const field = setCmd[1].toLowerCase() as 'name'|'role'|'company'|'availability';
+      const value = setCmd[2].trim();
+      const next = { ...attendee, [field]: value } as Attendee;
+      setAttendee(next);
+      push({ id: crypto.randomUUID(), role: 'assistant', text: `Updating your ${field}…` });
+      try {
+        const body = { ...next } as Attendee;
+        if (eventCode && !body.event_code) body.event_code = eventCode;
+        const res = await fetch('/api/attendees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const js = await res.json();
+        if (!res.ok || !js.ok) throw new Error(js.error || 'Failed to save');
+        setAttendee(js.attendee as Attendee);
+        push({ id: crypto.randomUUID(), role: 'assistant', text: 'Saved. Finding matches…' });
+        if (js.attendee?.id) await runMatching(js.attendee.id);
+      } catch (e) {
+        push({ id: crypto.randomUUID(), role: 'assistant', text: e instanceof Error ? e.message : 'Failed to save' });
+      }
+      return;
+    }
+
+    // 2) If no commands matched, continue the simple step flow based on what is still missing
     const a = { ...attendee };
     if (!a.name) {
       a.name = trimmed;
@@ -339,61 +381,6 @@ export default function ChatUI() {
     // After onboarding, interpret simple commands
     if (/^match$/i.test(trimmed) && attendee.id) {
       await runMatching(attendee.id);
-      return;
-    }
-    // Switch event: 'event:slug' or 'event slug'
-    const evCmd = trimmed.match(/^event\s*[: ]\s*([a-z0-9_-]+)$/i);
-    if (evCmd) {
-      const slug = evCmd[1].toLowerCase();
-      const next = { ...attendee, event_code: slug } as Attendee;
-      setAttendee(next);
-      push({ id: crypto.randomUUID(), role: 'assistant', text: `Switching event to '${slug}' and saving your profile…` });
-      try {
-        const res = await fetch('/api/attendees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(next) });
-        const js = await res.json();
-        if (!res.ok || !js.ok) throw new Error(js.error || 'Failed to save');
-        if (js.attendee?.id) setMyId(js.attendee.id);
-        push({ id: crypto.randomUUID(), role: 'assistant', text: 'Saved. Re-running matches…' });
-        await runMatching(js.attendee?.id || attendee.id!);
-      } catch (e) {
-        push({ id: crypto.randomUUID(), role: 'assistant', text: e instanceof Error ? e.message : 'Failed to switch event' });
-      }
-      return;
-    }
-
-    // Edit commands: set field: value
-    const setCmd = trimmed.match(/^set\s+(name|role|company|availability)\s*:\s*(.+)$/i);
-    if (setCmd) {
-      const field = setCmd[1].toLowerCase() as 'name'|'role'|'company'|'availability';
-      const value = setCmd[2].trim();
-      const next = { ...attendee, [field]: value } as Attendee;
-      setAttendee(next);
-      push({ id: crypto.randomUUID(), role: 'assistant', text: `Updating your ${field}…` });
-      try {
-        const res = await fetch('/api/attendees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(next) });
-        const js = await res.json();
-        if (!res.ok || !js.ok) throw new Error(js.error || 'Failed to save');
-        push({ id: crypto.randomUUID(), role: 'assistant', text: 'Saved. Type `match` to refresh suggestions.' });
-      } catch (e) {
-        push({ id: crypto.randomUUID(), role: 'assistant', text: e instanceof Error ? e.message : 'Failed to save' });
-      }
-      return;
-    }
-    const setList = trimmed.match(/^set\s+(interests|goals)\s*:\s*(.+)$/i);
-    if (setList) {
-      const field = setList[1].toLowerCase() as 'interests'|'goals';
-      const list = setList[2].split(',').map(s=>s.trim()).filter(Boolean);
-      const next = { ...attendee, [field]: list } as Attendee;
-      setAttendee(next);
-      push({ id: crypto.randomUUID(), role: 'assistant', text: `Updating your ${field}…` });
-      try {
-        const res = await fetch('/api/attendees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(next) });
-        const js = await res.json();
-        if (!res.ok || !js.ok) throw new Error(js.error || 'Failed to save');
-        push({ id: crypto.randomUUID(), role: 'assistant', text: 'Saved. Type `match` to refresh suggestions.' });
-      } catch (e) {
-        push({ id: crypto.randomUUID(), role: 'assistant', text: e instanceof Error ? e.message : 'Failed to save' });
-      }
       return;
     }
 
@@ -543,8 +530,9 @@ export default function ChatUI() {
     const v = input;
     setInput("");
     setBusy(true);
+    inputRef.current?.focus();
     const run = async () => {
-      try { await handleUser(v); } finally { setBusy(false); }
+      try { await handleUser(v); } finally { setBusy(false); inputRef.current?.focus(); }
     };
     void run();
   };
@@ -568,7 +556,7 @@ export default function ChatUI() {
           placeholder={attendee.id ? 'Type a message… (or `match`)' : 'Type here…'}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          disabled={busy || loading}
+          ref={inputRef}
         />
         <button type="submit" className="rounded-md text-white px-4 py-2 text-sm disabled:opacity-60" style={{ background: 'var(--accent)' }} disabled={busy || loading}>
           {busy || loading ? '...' : 'Send'}

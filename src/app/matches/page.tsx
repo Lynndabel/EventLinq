@@ -78,7 +78,7 @@ export default function MatchesPage() {
     { key: "declined", label: "Declined" },
   ];
 
-  const list = attendees; // backend wiring for statuses can be added later
+  const list = attendees.filter((p) => !meId || p.id !== meId); // hide my own profile in 'All'
   const filteredIntros = intros.filter((it) => {
     if (tab === 'pending') return it.status === 'proposed';
     if (tab === 'confirmed') return it.status === 'accepted';
