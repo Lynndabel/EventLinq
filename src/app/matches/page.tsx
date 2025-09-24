@@ -36,27 +36,30 @@ export default function MatchesPage() {
         if (typeof window !== 'undefined') {
           const mid = window.localStorage.getItem('attendee_id');
           setMeId(mid);
-          // Load self to get event_id and contact handles
-          if (mid) {
-            try {
-              const selfRes = await fetch(`/api/attendees?id=${encodeURIComponent(mid)}`);
-              const selfJson = await selfRes.json();
-              if (selfRes.ok && selfJson.ok && selfJson.attendee) {
-                const me = selfJson.attendee as Attendee;
-                if (me.event_id) setEventId(me.event_id);
-                if (me.telegram) setTVal(me.telegram.startsWith('@') ? me.telegram.slice(1) : me.telegram);
-                if (me.x_handle) setXVal(me.x_handle.startsWith('@') ? me.x_handle.slice(1) : me.x_handle);
-              }
-            } catch {}
+          if (!mid) {
+            // Do not fetch attendees until user completes onboarding
+            setNotice('Please open Chat to complete onboarding first.');
+            return;
           }
+          // Load self to get event_id and contact handles
+          try {
+            const selfRes = await fetch(`/api/attendees?id=${encodeURIComponent(mid)}`);
+            const selfJson = await selfRes.json();
+            if (selfRes.ok && selfJson.ok && selfJson.attendee) {
+              const me = selfJson.attendee as Attendee;
+              if (me.event_id) setEventId(me.event_id);
+              if (me.telegram) setTVal(me.telegram.startsWith('@') ? me.telegram.slice(1) : me.telegram);
+              if (me.x_handle) setXVal(me.x_handle.startsWith('@') ? me.x_handle.slice(1) : me.x_handle);
+            }
+          } catch {}
         }
-        // Scope attendees by event if available
-        const res = await fetch(eventId ? `/api/attendees?event_id=${encodeURIComponent(eventId)}` : "/api/attendees");
-        const json = await res.json();
-        if (res.ok && json.ok) setAttendees(json.attendees || []);
-        // load my intros
-        const me = typeof window !== 'undefined' ? window.localStorage.getItem('attendee_id') : null;
-        if (me) await loadIntros(me);
+        // Scope attendees by event if available (only after we know the user)
+        if (meId) {
+          const res = await fetch(eventId ? `/api/attendees?event_id=${encodeURIComponent(eventId)}` : "/api/attendees");
+          const json = await res.json();
+          if (res.ok && json.ok) setAttendees(json.attendees || []);
+          await loadIntros(meId);
+        }
       } finally {
         setLoading(false);
       }
@@ -250,7 +253,12 @@ export default function MatchesPage() {
             </ul>
           </section>
         )}
-        {tab === 'all' && (loading ? (
+        {(!meId) ? (
+          <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-6 bg-white/70 dark:bg-black/70 text-sm">
+            You need to complete onboarding before viewing matches.
+            <a href="/chat" className="inline-block ml-2 underline">Open Chat</a>
+          </div>
+        ) : tab === 'all' && (loading ? (
           <ul className="space-y-2">
             {Array.from({ length: 4 }).map((_, i) => (
               <li key={i} className="border rounded-xl p-4 bg-white dark:bg-black">
